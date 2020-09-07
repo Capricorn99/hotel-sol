@@ -15,13 +15,11 @@ def on_message(client, userdata, message):
    start = "hotel/"
    end = "/relay"
    room = int(_topic[len(start):-len(end)])
-   print(room, _data)
    
    for localRoom in localRooms:
       if localRoom['name'] == room:
          localRoom['state'] = _data
-
-   writebacktodb()
+   dbRooms.find_one_and_update({'name': room}, {'$set': {'state': _data}})
 
 def on_disconnect (client, userdata, rc):
    print("MQTT Disconnected")
@@ -29,7 +27,7 @@ def on_disconnect (client, userdata, rc):
 def on_connect (client, obj, flags, rc):
    print("MQTT Connected")
    client.subscribe(subTopic)
-   polling_relay()
+   # polling_relay()
 
 def mqtt_client():
    client.on_message=on_message
@@ -40,10 +38,8 @@ def mqtt_client():
    client.loop_forever()
 
 def polling_relay():
-   for floor in range(4):
-      for room in range(5):
-         room_num = str((floor + 1)*100 + room + 1)
-         client.publish("hotel/" + room_num + "/admin", "RELAY_STAT")
+   for room in localRooms:
+      client.publish("hotel/" + str(room['name']) + "/admin", "RELAY_STAT")
 
 def initfromdb():
    for room in dbRooms.find({}, projection={'_id': False, 'name': True, 'state': True}):
@@ -59,7 +55,7 @@ def retfromdb():
                   stat = "RELAY_ON"
                else:
                   stat = "RELAY_OFF"
-               client.publish("hotel/" + str(temp['name']) + "/relay", stat)
+               client.publish("hotel/" + str(temp['name']) + "/admin", stat)
 
 def writebacktodb():
    for room in localRooms:
